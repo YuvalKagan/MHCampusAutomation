@@ -4,6 +4,7 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 
+import org.eclipse.jdt.internal.compiler.lookup.UpdatedMethodBinding;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -43,6 +44,8 @@ public class ConnectGradeSync {
 	WebElement checkBoxButton;
 	WebElement syncButton;
 	WebElement dropDownAttempt;
+	WebElement closeButton;
+	WebElement syncStatusBox;
 	
 	
 	
@@ -66,6 +69,7 @@ public class ConnectGradeSync {
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
+		driver.close();
 	}
 
 	@Before
@@ -111,14 +115,15 @@ public class ConnectGradeSync {
 	
 	@Test
 	public void cGoToGradesSection() throws Exception{
-		gradeSection = driver.findElement(By.xpath(".//*[@id='section-tabs']/li[5]/a"));
-		wait.until(ExpectedConditions.elementToBeClickable(gradeSection));
+		goToGradeBookPage(driver);
 		gradeSection.click();
 		Thread.sleep(3000);
-		scoreBox = driver.findElement(By.xpath(".//*[@id='gradebook_grid']/div[3]/div[4]/div/div/div[1]/div"));
-		totalPoints = driver.findElement(By.cssSelector(".assignment-points-possible"));
-		currentScore = scoreBox.getText();
-		pointsPossible = totalPoints.getText();
+		//scoreBox = driver.findElement(By.xpath(".//*[@id='gradebook_grid']/div[3]/div[4]/div/div/div[1]/div"));
+		//totalPoints = driver.findElement(By.cssSelector(".assignment-points-possible"));
+		
+		currentScore = getCurrentScoreFromCanvas(driver);
+		pointsPossible = getPointsPossibleFromCanvas(driver);
+		
 		System.out.println("Current score is: " + currentScore + " " + pointsPossible);
 		Thread.sleep(1000);
 		System.out.println("Going back to course home screen");
@@ -183,7 +188,7 @@ public class ConnectGradeSync {
 		System.out.println("Clearing current score");
 		newScoreBox.clear();
 		System.out.println("Sendning new score");
-		double convertFromString = Integer.parseInt(currentScore);
+		double convertFromString = Double.parseDouble(currentScore);
 		System.out.println(convertFromString+0.1);
 		adjustedPoints = Double.toString(convertFromString+0.1);
 		newScoreBox.sendKeys(adjustedPoints);
@@ -214,11 +219,11 @@ public class ConnectGradeSync {
 		
 		//TODO: select 'last' from dropdown list
 		try {
-			System.out.println("Selecting 'Last' from drop down list");
+			System.out.println("Selecting 'Best' from drop down list");
 			Select dropDownAttempt = new Select(driver.findElement(By.id("mySelect")));
-			dropDownAttempt.selectByValue("Last");
+			dropDownAttempt.selectByValue("Best");
 		} catch (Exception e1) {
-			System.out.println("Selecting 'Last' from drop down list unsuccesfful");
+			System.out.println("Selecting 'Best' from drop down list unsuccesfful");
 			e1.printStackTrace();
 		}
 		
@@ -231,6 +236,69 @@ public class ConnectGradeSync {
 			e.printStackTrace();
 		}
 		
+		try {
+			closeButton = driver.findElement(By.xpath(".//*[@id='modalCtr']/div[2]/div[2]/a"));
+			System.out.println("clicking on close button in the popup");
+			closeButton.click();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			System.out.println("Close button was not found");
+			e.printStackTrace();
+		}
 		
+		try {
+			syncStatusBox = driver.findElement(By.xpath(".//*[@id='12131214_status']/div/span[2]"));
+			String syncStatusText = syncStatusBox.getText();
+			while (syncStatusText.contains("progress")){
+				System.out.println("Grade sync in progress,Waiting 30 seconds");
+				Thread.sleep(30000);
+				driver.navigate().refresh();
+				syncStatusBox = driver.findElement(By.xpath(".//*[@id='12131214_status']/div/span[2]"));
+				syncStatusText = syncStatusBox.getText();
+				
+			}
+			if (syncStatusText.contains("failed")){
+				fail();
+			}
+			System.out.println("The reuslt of the grade sync is: " + syncStatusText);
+		} catch (Exception e) {
+			System.out.println("Cannot find Sync Staues Box");
+			e.printStackTrace();
+			Thread.sleep(3000);
+		}
+		ArrayList<String> tabs =new ArrayList<>( driver.getWindowHandles());
+		driver.close();
+		driver.switchTo().window((String) tabs.get(0));
+	}
+	@Test
+	public void gGradesCompare() throws Exception{
+		String updatedPoints;
+		
+		goToGradeBookPage(driver);
+		gradeSection.click();
+		Thread.sleep(3000);
+		updatedPoints= getCurrentScoreFromCanvas(driver);
+		//double doubleUpdatePoints = Double.parseDouble(updatedPoints);
+		if (!((Double.parseDouble(updatedPoints) == Double.parseDouble(currentScore)+0.1))){
+			fail();
+		}
+	}
+	
+	private void goToGradeBookPage(WebDriver driver){
+		gradeSection = driver.findElement(By.xpath(".//*[@id='section-tabs']/li[5]/a"));
+		wait.until(ExpectedConditions.elementToBeClickable(gradeSection));
+	}
+	private String getCurrentScoreFromCanvas(WebDriver driver){
+		String updatedPoints;
+		
+		scoreBox = driver.findElement(By.xpath(".//*[@id='gradebook_grid']/div[3]/div[4]/div/div/div[1]/div"));
+		updatedPoints = scoreBox.getText();
+		return updatedPoints;
+		
+	}
+	private String getPointsPossibleFromCanvas(WebDriver driver){
+		totalPoints = driver.findElement(By.cssSelector(".assignment-points-possible"));
+		pointsPossible = totalPoints.getText();
+		return pointsPossible;
 	}
 }
