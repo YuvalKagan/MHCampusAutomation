@@ -282,6 +282,10 @@ public class ConnectGradeSync {
 		if (!((Double.parseDouble(updatedPoints) == Double.parseDouble(currentScore)+0.1))){
 			fail();
 		}
+		else{
+			driver.get("https://vanamgram.files.wordpress.com/2012/05/success.jpg");
+			Thread.sleep(60000);
+		}
 	}
 	
 	private void goToGradeBookPage(WebDriver driver){
